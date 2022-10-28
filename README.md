@@ -1,6 +1,11 @@
 # plot-brainmap
 Plot brain maps based on freesurfer fsaverage template
 
+# Install
+```
+addpath('PATH_TO_PLOT-BRAINMAP');
+```
+
 # Examples
 Create a random vector to plot, base on the DK114 atlas ('lausanne120')
 
