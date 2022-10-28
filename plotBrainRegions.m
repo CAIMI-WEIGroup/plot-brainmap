@@ -1,32 +1,38 @@
-function yPlotRegionMap(values, regions, atlas, varargin)
+function plotBrainRegions(values, atlas, varargin)
 % ======================== Function description ===========================
 % This function plot brain map for DK atlas regions or economo
 % Input
 %       values: N by 1 vectors of values to be ploted. N: number of regions 
-%       regions: N by 1 cell of region descriptions
-%       atlas: string of the atlas name, e.g., 'lausanne120'
+%       atlas: string of the atlas name, e.g., 'lausanne120', 'aparc',
+%           'BN_Atlas', 'lausanne250'
 %
 % Optional input
+%       regions: N by 1 cell of region descriptions. This is required when
+%           VALUES are in a different order as the FS lookup table,
+%           or N is smaller than the size of all regions in the atlas.
 %       limits: [minimum value, maximum value] to be plotted
 %           Default: [min(values), max(values)]
 %       subject: string of the subject name (folder name of the FS output)
 %           Default: fsaverage
 %       subjects_dir: path to the directory of the subject folder.
-%           Default: SUBJECTS_DIR in bash
-%       type: colormap type of cbrewer. e.g., 'div', 'seq', 'qual'
+%           Default: current path
+%       type: colormap type of CBREWER. e.g., 'div', 'seq', 'qual'
 %           Default: 'seq'
-%       color: colormap color of cbrewer. e.g., 'RdBu', 'Blues'
+%       color: colormap color of CBREWER. e.g., 'RdBu', 'Blues'
 %           Default: 'Blues'
 %       background: color of the background. e.g., 'k', 'w'
 %           Default: 'w'
 %       surf: string of the surface type. e.g., 'pial', 'white', 'inflated'
-%           Default: 'pial'
+%           Default: 'pial_semi_inflated'
 %       out_dir: string of the outputfile.
 %           default: fig.png under the current folder
-% by Yongbin Wei, Jul 2020
+% by Yongbin Wei, Jul 2020; revised on October 2022
 % =========================================================================
 
 % ======================== Function starts here ===========================
+
+CURRENTPATH = fileparts(mfilename("fullpath"));
+addpath(genpath(fullfile(CURRENTPATH, 'src')));
 
 while ~isempty(varargin)
     if numel(varargin) == 1
@@ -35,6 +41,8 @@ while ~isempty(varargin)
     end 
     
     switch varargin{1}
+        case 'regions'
+            regions = varargin{2};
         case 'limits'
             limits = varargin{2};
         case 'color'
@@ -64,16 +72,19 @@ else
    end
 end
 
+% set color map to blue by default
 if ~exist('color', 'var')
     color = 'Blues';
 end
 
+% set sequential color map by default
 if ~exist('type', 'var')
     type = 'seq';
 end
 
+% plot 
 if ~exist('surf', 'var')
-    surf = 'pial';
+    surf = 'pial_semi_inflated';
 end
 
 if ~exist('background', 'var')
@@ -85,7 +96,7 @@ if ~exist('subject', 'var')
 end
 
 if ~exist('subjects_dir', 'var')
-    subjects_dir = getenv('SUBJECTS_DIR');
+    subjects_dir = CURRENTPATH;
     disp('## SUBJECT_DIR');
     disp(subjects_dir);
 end
@@ -94,6 +105,19 @@ if ~exist('out_dir', 'var')
     out_dir = './fig.png';
 end
 
+% check regions
+lookuptable = readtable(fullfile(CURRENTPATH, 'src', 'lookup_tables', ...
+    [atlas, '.txt']));
+if ~exist('regions', 'var')
+    regions = lookuptable.Var2;
+end
+if numel(regions) ~= numel(values)
+   error(['## Wrong arguments: the length of values is not equal to ' ...
+       'the length of brain regions']);
+   return
+end
+
+% load annotations
 datapath = fullfile(subjects_dir, subject);
 annotPath = {fullfile(datapath, 'label', ['lh.', atlas, '.annot']); ...
     fullfile(datapath, 'label', ['rh.', atlas, '.annot'])};
@@ -134,10 +158,10 @@ function h = plotSurface4(freesurferSurface, freesurferAnnotation, ...
     regions, colorMatrix, background, colors, limits)
 
     brain = 0.85; % 0~1, brain background
-    figure('units', 'normalized');
+    figure('units', 'centimeters','Position',[0,0,12,11.5]);
     set(gcf,'Color', background)
     set(gcf, 'InvertHardcopy', 'off');
-    tiledlayout(5, 4, 'TileSpacing', 'Compact', 'Padding', 'compact');
+    tiledlayout(5, 4, 'TileSpacing', 'Compact', 'Padding', 'tight');
 
     % Left hemishpere
     [~, label, colortable] = read_annotation(...
@@ -193,6 +217,7 @@ function h = plotSurface4(freesurferSurface, freesurferAnnotation, ...
         'FaceColor', 'flat', 'FaceLighting', 'gouraud', ...
         'EdgeColor', 'none');
     colormap(gca, colortable.table(:, 1:3)/255);
+    axis([-110 100 -80 80])
     axis off;
     axis equal;
     view([0 90]);
@@ -208,6 +233,7 @@ function h = plotSurface4(freesurferSurface, freesurferAnnotation, ...
         'FaceColor', 'flat', 'FaceLighting', 'gouraud', ...
         'EdgeColor', 'none');
     colormap(gca, colortable.table(:, 1:3)/255);
+    axis([-100 110 -80 80])
     axis off;
     view([0 90]);
     lightangle(0, 90)
@@ -264,6 +290,7 @@ function h = plotSurface4(freesurferSurface, freesurferAnnotation, ...
         'EdgeColor', 'none');
     colormap(gca, colortable.table(:, 1:3)/255);
     axis equal; 
+    axis([-100 110 -80 80])
     axis off;
     view([0 90]);
     lightangle(0, 90)
@@ -279,6 +306,7 @@ function h = plotSurface4(freesurferSurface, freesurferAnnotation, ...
         'EdgeColor', 'none');
     colormap(gca, colortable.table(:, 1:3)/255);
     axis equal; 
+    axis([-110 100 -80 80])
     axis off;
     view([0 90]);
     lightangle(0, 90)
@@ -296,8 +324,8 @@ function h = plotSurface4(freesurferSurface, freesurferAnnotation, ...
     colors = [1, 1, 1; colors];
     colormap(gca, colors);
     axis off;
-    text(10, 2, num2str(round(limits(1), 3)));
-    text(90, 2, num2str(round(limits(2), 3)));
+    text(15, 2, num2str(round(limits(1), 3)), 'HorizontalAlignment', 'right');
+    text(85, 2, num2str(round(limits(2), 3)), 'HorizontalAlignment', 'left');
     
     h = gcf;
     return
